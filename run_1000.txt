@@ -1,0 +1,145 @@
+
+/CLEAR
+
+N_RUNS = 1000  ! 定义总的计算次数
+
+*DIM, AllThk, ARRAY, N_RUNS, 10
+
+*DIM, DATA, ARRAY, N_RUNS, 18
+
+*VREAD, AllThk, 'parameter', 'txt', , JIK,10,N_RUNS,,0
+(10F20.10)
+
+CDREAD, DB, 'sl', 'cdb'
+
+
+! ### 开始1000次计算的主循环 ###
+
+*DO,i,1,N_RUNS
+
+    /PREP7
+    THK_46 = AllThk(i,1)
+    THK_36 = AllThk(i,2)
+    THK_37 = AllThk(i,3)
+    THK_38 = AllThk(i,4)
+    THK_43 = AllThk(i,5)
+    THK_42 = AllThk(i,6)
+    THK_44 = AllThk(i,7)
+    THK_45 = AllThk(i,8)
+    THK_48 = AllThk(i,9)
+    THK_47 = AllThk(i,10)
+
+    sect,5,shell,,  
+    secdata, THK_46,1,0,3
+
+    sect,6,shell,,  
+    secdata, THK_36,1,0,3
+
+    sect,7,shell,,  
+    secdata, THK_37,1,0,3
+
+    sect,8,shell,,  
+    secdata, THK_38,1,0,3
+
+    sect,9,shell,,  
+    secdata, THK_43,1,0,3
+
+    sect,10,shell,,  
+    secdata, THK_42,1,0,3
+
+    sect,11,shell,,  
+    secdata, THK_44,1,0,3
+
+    sect,12,shell,,  
+    secdata, THK_45,1,0,3
+
+    sect,13,shell,,  
+    secdata, THK_48,1,0,3
+
+    sect,14,shell,,  
+    secdata, THK_47,1,0,3
+
+    FINISH
+
+/PREP7
+
+! =========================================
+! 1. 定义热-结构计算所需的材料属性 (以 1 号材料为例)
+! =========================================
+MP, ALPX, 1, 1.2E-5    ! 热膨胀系数 (1/℃)，结构热变形/热应力核心参数
+MP, KXX,  1, 45.0      ! 导热系数 (W/(m·K))，热传导计算所需
+MP, C,    1, 460       ! 比热容 (J/(kg·K))，瞬态分析所需
+MP, DENS, 1, 7850      ! 密度 (kg/m^3)
+
+! 2. 设置热应力计算的参考零应变温度 (例如 20 ℃)
+TREF, 20
+
+! 如果需要给模型施加均匀的环境温度/热载荷 (例如 100 ℃)：
+BFUNIF, TEMP, 100
+
+FINISH
+
+
+    /SOL
+    SOLVE
+    FINISH
+
+    /POST1
+    SET, LAST
+    
+    NSORT, U, SUM, 0, 0
+    *GET, DATA(i,1), SORT, 0, MAX  
+    ALLS    
+    *GET, DATA(i,2), NODE, 9325, S, EQV   
+    *GET, DATA(i,3), ELEM, 0, MC, X
+    *GET, DATA(i,4), ELEM, 0, MC, Y
+    *GET, DATA(i,5), ELEM, 0, MC, Z
+    *GET, DATA(i,6), ELEM, 0, MTOT, X
+    *GET, DATA(i,7), ELEM, 0, MTOT, Y
+    *GET, DATA(i,8), ELEM, 0, MTOT, Z
+    *GET, DATA(i,9), ELEM, 0, IMC, X
+    *GET, DATA(i,10), ELEM, 0, IMC, Y
+    *GET, DATA(i,11), ELEM, 0, IMC, Z
+    *GET, DATA(i,12), ELEM, 0, IMC, XY
+    *GET, DATA(i,13), ELEM, 0, IMC, YZ
+    *GET, DATA(i,14), ELEM, 0, IMC, ZX
+
+! --- 2. 新增：热强度与热变形响应提取 (15-18) ---
+    
+    ! 【热变形提取】
+    ! (A) 全局最大热变形（矢量和位移 U_SUM）
+    NSORT, U, SUM, 0, 0
+    *GET, DATA(i,15), SORT, 0, MAX
+    ALLS
+
+    ! (B) 关键节点（如 9325）的热变形/位移
+    *GET, DATA(i,16), NODE, 9325, U, SUM
+
+    ! 【热强度提取】
+    ! (C) 全局最大等效热应变 (Max Equivalent Thermal Strain)
+    NSORT, EPTH, EQV, 0, 0
+    *GET, DATA(i,17), SORT, 0, MAX
+    ALLS
+
+    ! (D) 关键节点（如 9325）的等效热应变
+    *GET, DATA(i,18), NODE, 9325, EPTH, EQV
+
+    FINISH
+
+*ENDDO  ! 结束1000次循环
+
+*CFOPEN, 'DATA', 'txt'
+
+!*DO,j,1,N_RUNS
+!    *VWRITE, DATA(j,1), DATA(j,2), DATA(j,3), DATA(j,4), DATA(j,5), DATA(j,6), DATA(j,7), DATA(j,8), DATA(j,9), DATA(j,10), DATA(j,11), DATA(j,12), DATA(j,13), DATA(j,14), DATA(j,15), DATA(j,16), DATA(1,17), DATA(1,18)
+!    (14E20.10)
+!*ENDDO
+
+
+*VWRITE, DATA(1,1), DATA(1,2), DATA(1,3), DATA(1,4), DATA(1,5), DATA(1,6), DATA(1,7), DATA(1,8), DATA(1,9), DATA(1,10), DATA(1,11), DATA(1,12), DATA(1,13), DATA(1,14), DATA(1,15), DATA(1,16), DATA(1,17), DATA(1,18)
+(14F20.10)
+
+
+*CFCLOS
+
+!/EXIT
